@@ -26,11 +26,9 @@ public class TileObject : MonoBehaviour
         Tile myOriginalTile = _currentTile;
         Tile otherOriginalTile = other._currentTile;
 
-        // Swap tile references
         myOriginalTile.SetTileObject(other);
         otherOriginalTile.SetTileObject(this);
 
-        // Animate movement
         transform.DOMove(otherOriginalTile.transform.position, 0.2f)
             .OnComplete(() => onComplete?.Invoke());
         other.transform.DOMove(myOriginalTile.transform.position, 0.2f);

@@ -8,7 +8,10 @@ public class InputHandler : MonoBehaviour
     private Vector2 _initialTouchPosition;
     private bool _isSwapping;
 
-    private void Awake() => _gridManager = GetComponent<GridManager>();
+    private void Awake() 
+    {
+        _gridManager = GetComponent<GridManager>();
+    }
 
     private void Update()
     {
@@ -17,6 +20,9 @@ public class InputHandler : MonoBehaviour
 
     private void HandleInput()
     {
+        if (_gridManager.IsProcessing) 
+            return;
+
         if (Input.GetMouseButtonDown(0))
         {
             _initialTouchPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);

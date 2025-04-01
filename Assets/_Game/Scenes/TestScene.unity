@@ -404,6 +404,9 @@ MonoBehaviour:
   LevelData: {fileID: 11400000, guid: 2d43afc1d2693364fa8b444486cccc3a, type: 2}
   TilePrefab: {fileID: 6280872442411775783, guid: f58154e04d726ec478a079b9d88a165c, type: 3}
   TileObjectPrefab: {fileID: 448964758501023229, guid: 64784a63f71cf744f9dac9770ca58155, type: 3}
+  SwapEase: 12
+  _yThreshold: 3
+  _animationDuration: 0.3
 --- !u!4 &1935911054
 Transform:
   m_ObjectHideFlags: 0

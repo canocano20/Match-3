@@ -1,3 +1,7 @@
+using DG.Tweening;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -5,11 +9,17 @@ public class GridManager : MonoBehaviour
     public LevelData LevelData;
     public GameObject TilePrefab;
     public GameObject TileObjectPrefab;
+    public Ease SwapEase = Ease.OutQuart;
 
     private Tile[,] _tiles;
     private Tile _selectedTile;
     private Swapper _swapper;
     private MatchChecker _matchChecker;
+
+    public bool IsProcessing { get; private set; }
+
+    [SerializeField] private float _yThreshold = 3f;
+    [SerializeField] private float _animationDuration = 0.3f;
 
     private void Awake()
     {
@@ -82,13 +92,17 @@ public class GridManager : MonoBehaviour
         GameObject tileObjectObj = Instantiate(TileObjectPrefab, transform);
         TileObject tileObject = tileObjectObj.GetComponent<TileObject>();
         tileObject.SetType(GetRandomTileType());
-        tileObject.transform.position = tile.transform.position;
+        // Set initial position above the final position
+        Vector3 finalPosition = tile.transform.position;
+        tileObject.transform.position = finalPosition + Vector3.up * _yThreshold; // Start 2 units above
+        // Animate to the final position
+        tileObject.transform.DOMove(finalPosition, _animationDuration);
         tile.SetTileObject(tileObject);
     }
 
     private TileObjectType GetRandomTileType()
     {
-        return (TileObjectType)Random.Range(0, System.Enum.GetValues(typeof(TileObjectType)).Length);
+        return (TileObjectType)UnityEngine.Random.Range(0, System.Enum.GetValues(typeof(TileObjectType)).Length);
     }
 
     public void SelectTile(Vector2 screenPosition)
@@ -99,21 +113,18 @@ public class GridManager : MonoBehaviour
 
     public bool AttemptSwap(Vector2 startPos, Vector2 currentPos)
     {
-        if (_selectedTile == null) return false;
+        if (_selectedTile == null) 
+            return false;
 
         Vector2 direction = currentPos - startPos;
         Vector2Int swapDirection = GetSwapDirection(direction);
         Tile targetTile = GetTileAt(_selectedTile.X + swapDirection.x, _selectedTile.Y + swapDirection.y);
 
-        if (targetTile == null) return false;
+        if (targetTile == null) 
+            return false;
 
-        return _swapper.TrySwap(_selectedTile, targetTile, isValidSwap =>
-        {
-            if (isValidSwap)
-            {
-                // Handle successful match
-            }
-        });
+        IsProcessing = true; // Disable input at the start of the swap
+        return _swapper.TrySwap(_selectedTile, targetTile, () => IsProcessing = false);
     }
 
     private Vector2Int GetSwapDirection(Vector2 direction)
@@ -132,5 +143,110 @@ public class GridManager : MonoBehaviour
             return _tiles[x, y];
         }
         return null;
+    }
+
+    public IEnumerator ProcessMatches(Action onComplete)
+    {
+        while (true)
+        {
+            List<Tile> matchingTiles = _matchChecker.CheckForMatches();
+            if (matchingTiles.Count == 0)
+            {
+                break;
+            }
+
+            foreach (Tile tile in matchingTiles)
+            {
+                if (tile.HasTileObject)
+                {
+                    Destroy(tile.TileObject.gameObject);
+                    tile.SetTileObject(null);
+                }
+            }
+
+            // Shift existing tiles down
+            List<Tween> shiftTweens = ShiftTilesDown();
+
+            // Spawn new tiles at the top
+            List<Tween> spawnTweens = SpawnNewTilesAtTop();
+
+            // Combine all animations into a sequence
+            Sequence sequence = DOTween.Sequence();
+            foreach (var tween in shiftTweens)
+            {
+                sequence.Join(tween); // Run shift animations in parallel
+            }
+            foreach (var tween in spawnTweens)
+            {
+                sequence.Join(tween); // Run spawn animations in parallel
+            }
+
+            // Wait for all animations to complete
+            yield return sequence.WaitForCompletion();
+        }
+
+        // Re-enable input and signal completion
+        IsProcessing = false;
+        onComplete?.Invoke();
+    }
+
+
+    private List<Tween> ShiftTilesDown()
+    {
+        List<Tween> tweens = new List<Tween>();
+        for (int x = 0; x < LevelData.Width; x++)
+        {
+            int emptyTileY = -1;
+            for (int y = 0; y < LevelData.Height; y++)
+            {
+                Tile currentTile = GetTileAt(x, y);
+                if (!currentTile.HasTileObject)
+                {
+                    if (emptyTileY == -1)
+                    {
+                        emptyTileY = y;
+                    }
+                }
+                else if (emptyTileY != -1)
+                {
+                    Tile emptyTile = GetTileAt(x, emptyTileY);
+                    TileObject movingObject = currentTile.TileObject;
+                    emptyTile.SetTileObject(movingObject);
+                    currentTile.SetTileObject(null);
+                    Tween tween = movingObject.transform.DOMove(emptyTile.transform.position, _animationDuration);
+                    tweens.Add(tween);
+                    emptyTileY++;
+                }
+            }
+        }
+        return tweens;
+    }
+
+    private List<Tween> SpawnNewTilesAtTop()
+    {
+        List<Tween> tweens = new List<Tween>();
+        for (int x = 0; x < LevelData.Width; x++)
+        {
+            for (int y = LevelData.Height - 1; y >= 0; y--)
+            {
+                Tile tile = GetTileAt(x, y);
+                if (!tile.HasTileObject)
+                {
+                    GameObject tileObjectObj = Instantiate(TileObjectPrefab, transform);
+                    TileObject tileObject = tileObjectObj.GetComponent<TileObject>();
+                    tileObject.SetType(GetRandomTileType());
+                    Vector3 finalPosition = tile.transform.position;
+                    tileObject.transform.position = finalPosition + Vector3.up * _yThreshold; // Start above grid
+                    Tween tween = tileObject.transform.DOMove(finalPosition, _animationDuration);
+                    tweens.Add(tween);
+                    tile.SetTileObject(tileObject);
+                }
+                else
+                {
+                    break; // Stop when we hit an existing tile
+                }
+            }
+        }
+        return tweens;
     }
 }

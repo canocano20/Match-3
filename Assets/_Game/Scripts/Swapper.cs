@@ -1,10 +1,14 @@
-using DG.Tweening;
 using System;
+using System.Collections.Generic;
+using DG.Tweening;
 
 public class Swapper
 {
     private readonly GridManager _gridManager;
     private readonly MatchChecker _matchChecker;
+
+    private float _swapAttemptDuration = 0.2f;
+    private float _swapReverseDuration = 0.15f;
 
     public Swapper(GridManager gridManager, MatchChecker matchChecker)
     {
@@ -12,38 +16,37 @@ public class Swapper
         _matchChecker = matchChecker;
     }
 
-    public bool TrySwap(Tile fromTile, Tile toTile, Action<bool> onComplete)
+    public bool TrySwap(Tile fromTile, Tile toTile, Action onComplete)
     {
         if (!CanSwap(fromTile, toTile))
         {
-            onComplete?.Invoke(false);
+            onComplete?.Invoke();
             return false;
         }
 
         TileObject fromObj = fromTile.TileObject;
         TileObject toObj = toTile.TileObject;
 
-        fromObj.transform.DOMove(toTile.transform.position, 0.2f);
-        toObj.transform.DOMove(fromTile.transform.position, 0.2f)
+        fromObj.transform.DOMove(toTile.transform.position, _swapAttemptDuration).SetEase(_gridManager.SwapEase);
+        toObj.transform.DOMove(fromTile.transform.position, _swapAttemptDuration).SetEase(_gridManager.SwapEase)
             .OnComplete(() =>
             {
                 fromTile.SetTileObject(toObj);
                 toTile.SetTileObject(fromObj);
 
-                bool isValidSwap = _matchChecker.CheckForMatches();
+                List<Tile> matchingTiles = _matchChecker.CheckForMatches();
 
-                if (isValidSwap)
+                if (matchingTiles.Count > 0)
                 {
-                    onComplete?.Invoke(true);
+                    _gridManager.StartCoroutine(_gridManager.ProcessMatches(onComplete));
                 }
                 else
                 {
                     fromTile.SetTileObject(fromObj);
                     toTile.SetTileObject(toObj);
-
-                    fromObj.transform.DOMove(fromTile.transform.position, 0.2f);
-                    toObj.transform.DOMove(toTile.transform.position, 0.2f)
-                        .OnComplete(() => onComplete?.Invoke(false));
+                    fromObj.transform.DOMove(fromTile.transform.position, _swapReverseDuration).SetEase(_gridManager.SwapEase);
+                    toObj.transform.DOMove(toTile.transform.position, _swapReverseDuration).SetEase(_gridManager.SwapEase)
+                        .OnComplete(() => onComplete?.Invoke());
                 }
             });
 

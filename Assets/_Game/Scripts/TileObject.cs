@@ -5,12 +5,6 @@ using UnityEngine;
 public class TileObject : MonoBehaviour
 {
     public TileObjectType Type { get; private set; }
-    private Tile _currentTile;
-
-    public void SetTile(Tile tile)
-    {
-        _currentTile = tile;
-    }
 
     public void SetType(TileObjectType type)
     {
@@ -18,20 +12,20 @@ public class TileObject : MonoBehaviour
         GetComponent<SpriteRenderer>().color = GetColorByType(type);
     }
 
-    public void SwapWith(TileObject other, Action onComplete = null)
+    public void SetDestroySequence(float destroyDuration)
     {
-        if (_currentTile == null || other?._currentTile == null) 
-            return;
+        ParticleManager.Instance.SpawnParticle(transform.position, Quaternion.identity, GetDarkerColor());
 
-        Tile myOriginalTile = _currentTile;
-        Tile otherOriginalTile = other._currentTile;
+        transform.DOScale(Vector3.zero, destroyDuration)
+        .OnComplete(() => Destroy(gameObject));
+    }
 
-        myOriginalTile.SetTileObject(other);
-        otherOriginalTile.SetTileObject(this);
-
-        transform.DOMove(otherOriginalTile.transform.position, 0.2f)
-            .OnComplete(() => onComplete?.Invoke());
-        other.transform.DOMove(myOriginalTile.transform.position, 0.2f);
+    private Color GetDarkerColor()
+    {
+        Color baseColor = GetColorByType(Type);
+        Color.RGBToHSV(baseColor, out float h, out float s, out float v);
+        v = Mathf.Clamp01(v * 0.92f);
+        return Color.HSVToRGB(h, s, v);
     }
 
     private Color GetColorByType(TileObjectType type)

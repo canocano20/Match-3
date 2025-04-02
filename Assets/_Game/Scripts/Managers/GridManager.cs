@@ -9,7 +9,9 @@ public class GridManager : MonoBehaviour
     public LevelData LevelData;
     public GameObject TilePrefab;
     public GameObject TileObjectPrefab;
+
     public Ease SwapEase = Ease.OutQuart;
+    public Ease DropEase = Ease.OutBack;
 
     private Tile[,] _tiles;
     private Tile _selectedTile;
@@ -20,6 +22,18 @@ public class GridManager : MonoBehaviour
 
     [SerializeField] private float _yThreshold = 3f;
     [SerializeField] private float _animationDuration = 0.3f;
+    [SerializeField] private float _animationWaitDuration = 0.15f;
+    [SerializeField] private float _spawnAnimationDuration = 0.4f;
+    [SerializeField] private float _spawnDelay = 0.05f;
+
+    [SerializeField] private Vector3 _punchScaleAmount = new Vector3(0.1f, 0.1f, 0);
+    [SerializeField] private float _punchScaleDuration = 0.1f;
+    [SerializeField] private int _punchScaleVibrato = 10;
+    [SerializeField] private float _punchScaleElasticity = 1f;
+
+    [SerializeField] private float _baseFallDuration = 0.2f;
+    [SerializeField] private float _fallDurationIncrement = 0.05f;
+    [SerializeField] private float _tileObjectDestroyDuration = 0.05f;
 
     private void Awake()
     {
@@ -36,7 +50,6 @@ public class GridManager : MonoBehaviour
             (LevelData.Height - 1) * 0.5f
         );
 
-        // Create tiles
         for (int x = 0; x < LevelData.Width; x++)
         {
             for (int y = 0; y < LevelData.Height; y++)
@@ -45,10 +58,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // Set up adjacency
         SetupAdjacency();
-
-        // Populate with tile objects
         PopulateTileObjects();
     }
 
@@ -92,11 +102,7 @@ public class GridManager : MonoBehaviour
         GameObject tileObjectObj = Instantiate(TileObjectPrefab, transform);
         TileObject tileObject = tileObjectObj.GetComponent<TileObject>();
         tileObject.SetType(GetRandomTileType());
-        // Set initial position above the final position
-        Vector3 finalPosition = tile.transform.position;
-        tileObject.transform.position = finalPosition + Vector3.up * _yThreshold; // Start 2 units above
-        // Animate to the final position
-        tileObject.transform.DOMove(finalPosition, _animationDuration);
+        tileObject.transform.position = tile.transform.position;
         tile.SetTileObject(tileObject);
     }
 
@@ -120,10 +126,13 @@ public class GridManager : MonoBehaviour
         Vector2Int swapDirection = GetSwapDirection(direction);
         Tile targetTile = GetTileAt(_selectedTile.X + swapDirection.x, _selectedTile.Y + swapDirection.y);
 
-        if (targetTile == null) 
-            return false;
+        if (targetTile == null)
+        {
+            _selectedTile.PlayFailSwapAnimation(swapDirection);
+            return true;
+        }
 
-        IsProcessing = true; // Disable input at the start of the swap
+        IsProcessing = true;
         return _swapper.TrySwap(_selectedTile, targetTile, () => IsProcessing = false);
     }
 
@@ -155,41 +164,48 @@ public class GridManager : MonoBehaviour
                 break;
             }
 
-            foreach (Tile tile in matchingTiles)
-            {
-                if (tile.HasTileObject)
-                {
-                    Destroy(tile.TileObject.gameObject);
-                    tile.SetTileObject(null);
-                }
-            }
+            DestroyMathingTiles(matchingTiles);
 
-            // Shift existing tiles down
             List<Tween> shiftTweens = ShiftTilesDown();
 
-            // Spawn new tiles at the top
-            List<Tween> spawnTweens = SpawnNewTilesAtTop();
-
-            // Combine all animations into a sequence
-            Sequence sequence = DOTween.Sequence();
+            Sequence shiftSequence = DOTween.Sequence();
             foreach (var tween in shiftTweens)
             {
-                sequence.Join(tween); // Run shift animations in parallel
+                shiftSequence.Join(tween);
             }
+
+            //yield return shiftSequence.WaitForCompletion();
+            //yield return new WaitForSeconds(_spawnDelay);
+
+            List<Tween> spawnTweens = SpawnNewTilesAtTop();
+
+            Sequence spawnSequence = DOTween.Sequence();
             foreach (var tween in spawnTweens)
             {
-                sequence.Join(tween); // Run spawn animations in parallel
+                spawnSequence.Join(tween);
             }
 
-            // Wait for all animations to complete
-            yield return sequence.WaitForCompletion();
+            yield return spawnSequence.WaitForCompletion();
+            yield return new WaitForSeconds(_animationWaitDuration);
         }
 
-        // Re-enable input and signal completion
         IsProcessing = false;
         onComplete?.Invoke();
     }
 
+    private void DestroyMathingTiles(List<Tile> matchingTiles)
+    {
+        foreach (Tile tile in matchingTiles)
+        {
+            if (tile.HasTileObject)
+            {
+                TileObject tileObject = tile.TileObject;
+
+                tile.SetTileObject(null);
+                tileObject.SetDestroySequence(_tileObjectDestroyDuration);
+            }
+        }
+    }
 
     private List<Tween> ShiftTilesDown()
     {
@@ -213,7 +229,13 @@ public class GridManager : MonoBehaviour
                     TileObject movingObject = currentTile.TileObject;
                     emptyTile.SetTileObject(movingObject);
                     currentTile.SetTileObject(null);
-                    Tween tween = movingObject.transform.DOMove(emptyTile.transform.position, _animationDuration);
+                    int fallDistance = y - emptyTileY;
+                    float duration = _baseFallDuration + (fallDistance - 1) * _fallDurationIncrement;
+                    Tween tween = movingObject.transform.DOMove(emptyTile.transform.position, duration)
+                    .SetEase(DropEase)
+                    .OnComplete(() => {
+                        movingObject.transform.DOPunchScale(_punchScaleAmount, _punchScaleDuration, _punchScaleVibrato, _punchScaleElasticity);
+                    });
                     tweens.Add(tween);
                     emptyTileY++;
                 }
@@ -227,6 +249,20 @@ public class GridManager : MonoBehaviour
         List<Tween> tweens = new List<Tween>();
         for (int x = 0; x < LevelData.Width; x++)
         {
+            int highestY = -1;
+            int emptyTileY = -1;
+
+            for (int y = 0; y < LevelData.Height; y++)
+            {
+                if (GetTileAt(x, y).HasTileObject)
+                {
+                    emptyTileY = y;
+                    highestY = LevelData.Height - y;
+                }
+            }
+
+            _yThreshold = highestY;
+
             for (int y = LevelData.Height - 1; y >= 0; y--)
             {
                 Tile tile = GetTileAt(x, y);
@@ -236,14 +272,20 @@ public class GridManager : MonoBehaviour
                     TileObject tileObject = tileObjectObj.GetComponent<TileObject>();
                     tileObject.SetType(GetRandomTileType());
                     Vector3 finalPosition = tile.transform.position;
-                    tileObject.transform.position = finalPosition + Vector3.up * _yThreshold; // Start above grid
-                    Tween tween = tileObject.transform.DOMove(finalPosition, _animationDuration);
+                    tileObject.transform.position = finalPosition + Vector3.up * _yThreshold;
+                    int fallDistance = y - emptyTileY;
+                    float duration = _spawnAnimationDuration + (fallDistance - 1) * _fallDurationIncrement;
+                    Tween tween = tileObject.transform.DOMove(finalPosition, duration)
+                    .SetEase(DropEase)
+                    .OnComplete(() => {
+                        tileObject.transform.DOPunchScale(_punchScaleAmount, _punchScaleDuration, _punchScaleVibrato, _punchScaleElasticity);
+                    });
                     tweens.Add(tween);
                     tile.SetTileObject(tileObject);
                 }
                 else
                 {
-                    break; // Stop when we hit an existing tile
+                    break;
                 }
             }
         }

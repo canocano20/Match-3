@@ -1,3 +1,4 @@
+using DG.Tweening;
 using UnityEngine;
 
 public class Tile : MonoBehaviour
@@ -16,9 +17,6 @@ public class Tile : MonoBehaviour
     public void SetTileObject(TileObject tileObject)
     {
         TileObject = tileObject;
-
-        if (tileObject != null)
-            tileObject.SetTile(this);
     }
 
     public bool IsAdjacent(Tile other)
@@ -26,5 +24,17 @@ public class Tile : MonoBehaviour
         return other != null &&
               (other == Left || other == Right ||
                other == Up || other == Down);
+    }
+
+    public void PlayFailSwapAnimation(Vector2Int swapDirection)
+    {
+        if (HasTileObject)
+        {
+            if (DOTween.IsTweening(TileObject.transform))
+                return;
+
+            Vector3 moveVector = (new Vector3(swapDirection.x, swapDirection.y) * 0.1f) + TileObject.transform.position;
+            TileObject.transform.DOMove(moveVector, 0.15f).SetLoops(2, LoopType.Yoyo).SetEase(Ease.Linear);
+        }
     }
 }

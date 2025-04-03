@@ -505,10 +505,10 @@ MonoBehaviour:
   _animationWaitDuration: 0.075
   _spawnAnimationDuration: 0.6
   _spawnDelay: 0
-  _punchScaleAmount: {x: 0.1, y: 0.1, z: 0}
+  _punchScaleAmount: {x: -0.1, y: -0.1, z: 0}
   _punchScaleDuration: 0.1
-  _punchScaleVibrato: 10
-  _punchScaleElasticity: 1
+  _punchScaleVibrato: 4
+  _punchScaleElasticity: 0.5
   _baseFallDuration: 0.4
   _fallDurationIncrement: 0.07
   _tileObjectDestroyDuration: 0.25

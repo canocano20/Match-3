@@ -153,7 +153,7 @@ public class GridManager : MonoBehaviour
         }
         return null;
     }
-
+    /*
     public IEnumerator ProcessMatches(Action onComplete)
     {
         while (true)
@@ -191,9 +191,60 @@ public class GridManager : MonoBehaviour
 
         IsProcessing = false;
         onComplete?.Invoke();
+    }*/
+    public IEnumerator ProcessMatches(Action onComplete)
+    {
+        bool continueProcessing = true;
+        while (continueProcessing)
+        {
+            continueProcessing = false;
+
+            // Phase 1: Handle matches and shifting
+            bool matchesFound;
+            do
+            {
+                matchesFound = false;
+                List<Tile> matchingTiles = _matchChecker.CheckForMatches();
+                if (matchingTiles.Count > 0)
+                {
+                    matchesFound = true;
+                    continueProcessing = true;
+                    DestroyMatchingTiles(matchingTiles);
+
+                    List<Tween> shiftTweens = ShiftTilesDown();
+                    Sequence shiftSequence = DOTween.Sequence();
+                    foreach (var tween in shiftTweens)
+                    {
+                        shiftSequence.Join(tween);
+                    }
+                    yield return shiftSequence.WaitForCompletion();
+                }
+            } while (matchesFound);
+
+            // Phase 2: Spawn new tiles
+            List<Tween> spawnTweens = SpawnNewTilesAtTop();
+            if (spawnTweens.Count > 0)
+            {
+                Sequence spawnSequence = DOTween.Sequence();
+                foreach (var tween in spawnTweens)
+                {
+                    spawnSequence.Join(tween);
+                }
+                yield return spawnSequence.WaitForCompletion();
+                yield return new WaitForSeconds(_animationWaitDuration);
+
+                if (_matchChecker.CheckForMatches().Count > 0)
+                {
+                    continueProcessing = true;
+                }
+            }
+        }
+
+        IsProcessing = false;
+        onComplete?.Invoke();
     }
 
-    private void DestroyMathingTiles(List<Tile> matchingTiles)
+    private void DestroyMatchingTiles(List<Tile> matchingTiles)
     {
         foreach (Tile tile in matchingTiles)
         {

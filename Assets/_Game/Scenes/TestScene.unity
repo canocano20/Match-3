@@ -497,7 +497,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   LevelData: {fileID: 11400000, guid: 2d43afc1d2693364fa8b444486cccc3a, type: 2}
   TilePrefab: {fileID: 6280872442411775783, guid: f58154e04d726ec478a079b9d88a165c, type: 3}
-  TileObjectPrefab: {fileID: 448964758501023229, guid: 64784a63f71cf744f9dac9770ca58155, type: 3}
+  RegularObjectPrefab: {fileID: 448964758501023229, guid: 64784a63f71cf744f9dac9770ca58155, type: 3}
+  TileSpriteMapSO: {fileID: 11400000, guid: 026598879e4154241a6347397eb12710, type: 2}
   SwapEase: 12
   DropEase: 2
   _yThreshold: 1

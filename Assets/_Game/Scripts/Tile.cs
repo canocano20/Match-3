@@ -8,6 +8,14 @@ public class Tile : MonoBehaviour
     public TileObject TileObject { get; private set; }
     public bool HasTileObject => TileObject != null;
 
+    private void OnMouseUp()
+    {
+        if(TileObject != null)
+        {
+            TileObject.OnClick();
+        }
+    }
+
     public void SetPosition(int x, int y)
     {
         X = x;

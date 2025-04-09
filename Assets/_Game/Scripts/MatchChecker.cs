@@ -1,3 +1,4 @@
+using Grid;
 using System.Collections.Generic;
 
 public class MatchChecker
@@ -9,7 +10,6 @@ public class MatchChecker
         _gridManager = gridManager;
     }
 
-    // Returns a list of tiles that are part of any match (horizontal or vertical)
     public List<Tile> CheckForMatches()
     {
         List<Tile> matchingTiles = new List<Tile>();
@@ -24,23 +24,23 @@ public class MatchChecker
         for (int y = 0; y < _gridManager.LevelData.Height; y++)
         {
             int matchCount = 1;
-            TileObjectType? prevType = null;
+            TileObject prevTileObject = null;
             List<Tile> currentMatch = new List<Tile>();
 
             for (int x = 0; x < _gridManager.LevelData.Width; x++)
             {
                 Tile tile = _gridManager.GetTileAt(x, y);
-                if (tile == null || !tile.HasTileObject)
+                if (tile == null || !tile.HasTileObject || !tile.TileObject.IsMatchable)
                 {
                     if (matchCount >= 3) matchingTiles.AddRange(currentMatch);
                     matchCount = 1;
-                    prevType = null;
+                    prevTileObject = null;
                     currentMatch.Clear();
                     continue;
                 }
 
-                TileObjectType currentType = tile.TileObject.Type;
-                if (currentType == prevType)
+                TileObject currentTileObject = tile.TileObject;
+                if (prevTileObject != null && currentTileObject.Matches(prevTileObject))
                 {
                     matchCount++;
                     currentMatch.Add(tile);
@@ -49,7 +49,7 @@ public class MatchChecker
                 {
                     if (matchCount >= 3) matchingTiles.AddRange(currentMatch);
                     matchCount = 1;
-                    prevType = currentType;
+                    prevTileObject = currentTileObject;
                     currentMatch.Clear();
                     currentMatch.Add(tile);
                 }
@@ -65,23 +65,23 @@ public class MatchChecker
         for (int x = 0; x < _gridManager.LevelData.Width; x++)
         {
             int matchCount = 1;
-            TileObjectType? prevType = null;
+            TileObject prevTileObject = null;
             List<Tile> currentMatch = new List<Tile>();
 
             for (int y = 0; y < _gridManager.LevelData.Height; y++)
             {
                 Tile tile = _gridManager.GetTileAt(x, y);
-                if (tile == null || !tile.HasTileObject)
+                if (tile == null || !tile.HasTileObject || !tile.TileObject.IsMatchable)
                 {
                     if (matchCount >= 3) matchingTiles.AddRange(currentMatch);
                     matchCount = 1;
-                    prevType = null;
+                    prevTileObject = null;
                     currentMatch.Clear();
                     continue;
                 }
 
-                TileObjectType currentType = tile.TileObject.Type;
-                if (currentType == prevType)
+                TileObject currentTileObject = tile.TileObject;
+                if (prevTileObject != null && currentTileObject.Matches(prevTileObject))
                 {
                     matchCount++;
                     currentMatch.Add(tile);
@@ -90,7 +90,7 @@ public class MatchChecker
                 {
                     if (matchCount >= 3) matchingTiles.AddRange(currentMatch);
                     matchCount = 1;
-                    prevType = currentType;
+                    prevTileObject = currentTileObject;
                     currentMatch.Clear();
                     currentMatch.Add(tile);
                 }

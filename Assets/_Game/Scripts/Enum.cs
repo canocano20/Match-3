@@ -1,7 +1,7 @@
-public enum TileObjectType
-{
-    Red,
-    Blue,
-    Green,
-    Yellow
+public enum TileType 
+{ 
+    Red, 
+    Blue, 
+    Green, 
+    Yellow 
 }

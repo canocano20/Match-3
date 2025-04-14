@@ -29,11 +29,11 @@ namespace Grid
 
             float rand = UnityEngine.Random.value;
             Type tileType;
-            if (rand < 0.04f) tileType = typeof(HorizontalRocketTileObject);
-            else if (rand < 0.08f) tileType = typeof(VerticalRocketTileObject);
-            else if (rand < 0.11f) tileType = typeof(BombTileObject);
-            else if (rand < 0.14f) tileType = typeof(ColorRemovingTileObject);
-            else tileType = RegularTileTypes[UnityEngine.Random.Range(0, RegularTileTypes.Length)];
+            if (rand < 0.00f) tileType = typeof(HorizontalRocketTileObject);
+            //else if (rand < 0.08f) tileType = typeof(VerticalRocketTileObject);
+            //else if (rand < 0.11f) tileType = typeof(BombTileObject);
+            //else if (rand < 0.14f) tileType = typeof(ColorRemovingTileObject);
+            else tileType = RegularTileTypes[UnityEngine.Random.Range(0, 4 /*RegularTileTypes.Length*/)];
 
             TileObject tileObj = (TileObject)tileObject.AddComponent(tileType);
 
